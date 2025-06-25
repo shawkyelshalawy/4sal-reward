@@ -1,6 +1,19 @@
 version: '3.8'
 
 services:
+  migrate:
+    image: migrate/migrate
+    command: [
+      "-path", "/migrations",
+      "-database", "postgresql://admin:secret@postgres:5432/rewarddb?sslmode=disable",
+      "up"
+    ]
+    volumes:
+      - ./internal/infrastructure/db/migrations:/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   app:
     build: .
     ports:
@@ -9,6 +22,8 @@ services:
       - DATABASE_URL=postgresql://admin:secret@postgres:5432/rewarddb?sslmode=disable
       - REDIS_ADDR=redis:6379
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

@@ -12,6 +12,8 @@ import (
 	"github.com/shawkyelshalawy/4sal-reward/internal/infrastructure/cache"
 	"github.com/shawkyelshalawy/4sal-reward/internal/infrastructure/db"
 	"github.com/shawkyelshalawy/4sal-reward/internal/infrastructure/logger"
+	"github.com/shawkyelshalawy/4sal-reward/internal/repositories"
+	"github.com/shawkyelshalawy/4sal-reward/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -37,7 +39,26 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(zapLog.GinLogger())
-
+	userRepo := repositories.NewUserRepository(pgDB)
+	creditRepo := repositories.NewCreditRepository(pgDB)
+	productRepo := repositories.NewProductRepository(pgDB)
+	
+	// Initialize services
+	creditService := &services.CreditService{
+		CreditRepo: creditRepo,
+		UserRepo:   userRepo,
+	}
+	
+	productService := &services.ProductService{
+		ProductRepo: productRepo,
+		UserRepo:    userRepo,
+	}
+	
+	creditHandler := &handlers.CreditHandler{CreditService: creditService}
+	productHandler := &handlers.ProductHandler{ProductService: productService}	
+	router.POST("/credits/purchase", creditHandler.PurchaseCreditPackage)
+	
+	router.POST("/products/redeem", productHandler.RedeemProduct)
 	handlers.RegisterHealthRoutes(router, pgDB, redisClient)
 
 	server := &http.Server{
