@@ -39,6 +39,7 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(zapLog.GinLogger())
+	// Initialize repositories
 	userRepo := repositories.NewUserRepository(pgDB)
 	creditRepo := repositories.NewCreditRepository(pgDB)
 	productRepo := repositories.NewProductRepository(pgDB)
@@ -51,14 +52,36 @@ func main() {
 	
 	productService := &services.ProductService{
 		ProductRepo: productRepo,
-		UserRepo:    userRepo,
 	}
 	
+	// Initialize handlers
 	creditHandler := &handlers.CreditHandler{CreditService: creditService}
-	productHandler := &handlers.ProductHandler{ProductService: productService}	
-	router.POST("/credits/purchase", creditHandler.PurchaseCreditPackage)
+	productHandler := &handlers.ProductHandler{ProductService: productService}
+	adminHandler := &handlers.AdminHandler{
+		ProductService: productService,
+		CreditService:  creditService,
+	}
+	aiHandler := &handlers.AIHandler{
+		ProductService: productService,
+		UserRepo:       userRepo,
+	}
 	
+	// Public routes
+	router.POST("/credits/purchase", creditHandler.PurchaseCreditPackage)
 	router.POST("/products/redeem", productHandler.RedeemProduct)
+	router.GET("/products/search", productHandler.SearchProducts)
+	
+	// Admin routes (in production, add authentication middleware)
+	admin := router.Group("/admin")
+	{
+		admin.POST("/packages", adminHandler.CreateCreditPackage)
+		admin.POST("/products", adminHandler.CreateProduct)
+		admin.PUT("/products/:id/offer-status", adminHandler.UpdateProductOfferStatus)
+	}
+	
+	// AI routes
+	router.POST("/ai/recommendation", aiHandler.GetRecommendation)
+	
 	handlers.RegisterHealthRoutes(router, pgDB, redisClient)
 
 	server := &http.Server{

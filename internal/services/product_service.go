@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,47 +9,42 @@ import (
 	"github.com/shawkyelshalawy/4sal-reward/internal/repositories"
 )
 
-
-
-
 type ProductService struct {
 	ProductRepo *repositories.ProductRepository
-	UserRepo    *repositories.UserRepository
+}
+
+func NewProductService(productRepo *repositories.ProductRepository) *ProductService {
+	return &ProductService{
+		ProductRepo: productRepo,
+	}
 }
 
 func (s *ProductService) RedeemProduct(ctx context.Context, userID, productID uuid.UUID, quantity int) error {
-	product, err := s.ProductRepo.GetByID(ctx, productID)
-	if err != nil {
-		return err
+	return s.ProductRepo.RedeemProduct(ctx, userID, productID, quantity)
+}
+
+func (s *ProductService) SearchProducts(ctx context.Context, query string, page, size int) ([]models.Product, error) {
+	return s.ProductRepo.Search(ctx, query, page, size)
+}
+
+func (s *ProductService) CreateProduct(ctx context.Context, name, description string, categoryID *uuid.UUID, pointCost, stockQuantity int, isInOfferPool bool, imageURL string) (uuid.UUID, error) {
+	product := &models.Product{
+		ID:            uuid.New(),
+		Name:          name,
+		Description:   description,
+		CategoryID:    categoryID,
+		PointCost:     pointCost,
+		StockQuantity: stockQuantity,
+		IsActive:      true,
+		IsInOfferPool: isInOfferPool,
+		ImageURL:      imageURL,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
-	
-	if !product.IsInOfferPool {
-		return errors.New("product not available for redemption")
-	}
-	if product.StockQuantity < quantity {
-		return errors.New("insufficient stock")
-	}
-	
-	pointsNeeded := product.PointCost * quantity
-	
-	if err := s.UserRepo.DeductPoints(ctx, userID, pointsNeeded); err != nil {
-		return err
-	}
-	
-	if err := s.ProductRepo.ReduceStock(ctx, productID, quantity); err != nil {
-		s.UserRepo.AddPoints(ctx, userID, pointsNeeded)
-		return err
-	}
-	
-	redemption := &models.PointRedemption{
-		ID:             uuid.New(),
-		UserID:         userID,
-		ProductID:      productID,
-		PointsUsed:     pointsNeeded,
-		Quantity:       quantity,
-		RedemptionDate: time.Now(),
-		Status:         "completed",
-	}
-	
-	return s.ProductRepo.CreateRedemption(ctx, redemption)
+	err := s.ProductRepo.Create(ctx, product)
+	return product.ID, err
+}
+
+func (s *ProductService) UpdateOfferStatus(ctx context.Context, productID uuid.UUID, isInOfferPool bool) error {
+	return s.ProductRepo.UpdateOfferStatus(ctx, productID, isInOfferPool)
 }

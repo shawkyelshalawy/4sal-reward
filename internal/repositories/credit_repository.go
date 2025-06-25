@@ -60,3 +60,21 @@ func (r *CreditRepository) CreatePurchase(ctx context.Context, purchase *models.
 	)
 	return err
 }
+
+func (r *CreditRepository) CreatePackage(ctx context.Context, pkg *models.CreditPackage) error {
+	query := `INSERT INTO credit_packages (
+                id, name, description, price, reward_points, is_active, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	
+	_, err := r.db.ExecContext(ctx, query,
+		pkg.ID,
+		pkg.Name,
+		pkg.Description,
+		pkg.Price,
+		pkg.RewardPoints,
+		pkg.IsActive,
+		pkg.CreatedAt,
+		pkg.UpdatedAt,
+	)
+	return err
+}
