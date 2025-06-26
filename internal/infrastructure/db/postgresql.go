@@ -33,9 +33,9 @@ func NewPostgresDB() (*sql.DB, error) {
 
 	host := getEnvOrDefault("POSTGRES_HOST", "localhost")
 	port := getEnvOrDefault("POSTGRES_PORT", "5432")
-	user := getEnvOrDefault("POSTGRES_USER", "postgres")
-	password := getEnvOrDefault("POSTGRES_PASSWORD", "")
-	dbname := getEnvOrDefault("POSTGRES_DB", "postgres")
+	user := getEnvOrDefault("POSTGRES_USER", "admin")
+	password := getEnvOrDefault("POSTGRES_PASSWORD", "secret")
+	dbname := getEnvOrDefault("POSTGRES_DB", "rewarddb")
 	sslmode := getEnvOrDefault("POSTGRES_SSLMODE", "disable")
 
 	connStr := fmt.Sprintf(

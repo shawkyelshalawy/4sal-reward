@@ -14,27 +14,12 @@ type CreditService struct {
 	UserRepo   *repositories.UserRepository
 }
 
-func (s *CreditService) PurchasePackage(ctx context.Context, userID, packageID uuid.UUID) error {
-	pkg, err := s.CreditRepo.GetPackage(ctx, packageID)
-	if err != nil {
-		return err
-	}
-	
-	if err := s.UserRepo.AddPoints(ctx, userID, pkg.RewardPoints); err != nil {
-		return err
-	}
-	
-	purchase := &models.CreditPurchase{
-		ID:            uuid.New(),
-		UserID:        userID,
-		CreditPackageID: packageID,
-		AmountPaid:    pkg.Price,
-		PointsAwarded: pkg.RewardPoints,
-		PurchaseDate:  time.Now(),
-		Status:        "completed",
-	}
-	
-	return s.CreditRepo.CreatePurchase(ctx, purchase)
+func (s *CreditService) PurchasePackage(ctx context.Context, userID, packageID uuid.UUID, amountPaid float64) error {
+	return s.CreditRepo.PurchasePackage(ctx, userID, packageID, amountPaid)
+}
+
+func (s *CreditService) GetPackage(ctx context.Context, packageID uuid.UUID) (*models.CreditPackage, error) {
+	return s.CreditRepo.GetPackage(ctx, packageID)
 }
 
 func (s *CreditService) CreatePackage(ctx context.Context, name, description string, price float64, rewardPoints int) (uuid.UUID, error) {
