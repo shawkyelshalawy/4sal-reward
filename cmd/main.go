@@ -52,6 +52,7 @@ func main() {
 	
 	productService := &services.ProductService{
 		ProductRepo: productRepo,
+		RedisClient: redisClient,
 	}
 	
 	// Initialize handlers
