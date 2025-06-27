@@ -13,7 +13,6 @@ type AdminHandler struct {
 	CreditService  *services.CreditService
 }
 
-// Create credit package
 func (h *AdminHandler) CreateCreditPackage(c *gin.Context) {
 	var req struct {
 		Name         string  `json:"name" binding:"required"`
@@ -36,7 +35,6 @@ func (h *AdminHandler) CreateCreditPackage(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"package_id": packageID})
 }
 
-// Create product
 func (h *AdminHandler) CreateProduct(c *gin.Context) {
 	var req struct {
 		Name            string `json:"name" binding:"required"`
@@ -72,7 +70,6 @@ func (h *AdminHandler) CreateProduct(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"product_id": productID})
 }
 
-// Update product offer pool status
 func (h *AdminHandler) UpdateProductOfferStatus(c *gin.Context) {
 	productID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
