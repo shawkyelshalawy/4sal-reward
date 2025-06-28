@@ -39,10 +39,12 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(zapLog.GinLogger())
+	
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(pgDB)
 	creditRepo := repositories.NewCreditRepository(pgDB)
 	productRepo := repositories.NewProductRepository(pgDB)
+	categoryRepo := repositories.NewCategoryRepository(pgDB)
 	
 	// Initialize services
 	creditService := &services.CreditService{
@@ -55,8 +57,7 @@ func main() {
 		RedisClient: redisClient,
 	}
 	
-	
-	SetupRoutes(router, creditService, productService, userRepo)
+	SetupRoutes(router, creditService, productService, userRepo, categoryRepo)
 	
 	handlers.RegisterHealthRoutes(router, pgDB, redisClient)
 

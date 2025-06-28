@@ -1,310 +1,355 @@
 # 4sal Reward System
 
-A modern reward system for managing users, credit packages, products, and AI-powered product recommendations.
+A modern, scalable reward system built with Go, designed for managing users, credit packages, products, and AI-powered product recommendations. This system supports hundreds of thousands of products with fast search capabilities and intelligent recommendations.
 
 ---
 
-## Table of Contents
+## 🚀 Features
 
-- [Overview](#overview)
-- [Business Logic](#business-logic)
-- [Architecture](#architecture)
-- [Setup & Running (Docker Compose)](#setup--running-docker-compose)
-- [API Endpoints](#api-endpoints)
-  - [Admin Endpoints](#admin-endpoints)
-  - [User Endpoints](#user-endpoints)
-  - [AI Recommendation Endpoint](#ai-recommendation-endpoint)
-  - [Health Check](#health-check)
-- [Sample Test Data](#sample-test-data)
-- [AI Prompt Explanation](#ai-prompt-explanation)
-- [Troubleshooting](#troubleshooting)
+- **Credit Package Management**: Users can purchase credit packages and earn reward points
+- **Product Redemption**: Redeem products using earned points from the offer pool
+- **Advanced Search**: Fast, full-text search across product names and descriptions with pagination
+- **AI Recommendations**: Intelligent product suggestions based on user's point balance and available categories
+- **Admin Panel**: Complete CRUD operations for packages and products
+- **Scalable Architecture**: Built with performance and scalability in mind
+- **Docker Support**: Fully containerized with Docker Compose
+- **Caching**: Redis integration for improved performance
+- **Health Monitoring**: Built-in health checks for all services
 
 ---
 
-## Overview
+## 🏗️ Architecture
 
-**4sal Reward System** is a backend service for a loyalty/reward platform.  
-It allows users to purchase credit packages, redeem products using points, and get AI-powered product recommendations based on their point balance and available categories.
+### Tech Stack
+- **Backend**: Go 1.22 with Gin framework
+- **Database**: PostgreSQL 15 with full-text search
+- **Cache**: Redis 7 for search result caching
+- **AI Integration**: OpenAI GPT-3.5-turbo for recommendations
+- **Containerization**: Docker & Docker Compose
+- **Testing**: Go testing with sqlmock
+
+### Project Structure
+```
+4sal-reward/
+├── cmd/                    # Application entry point
+├── internal/
+│   ├── domain/models/      # Domain models
+│   ├── handlers/           # HTTP handlers
+│   ├── repositories/       # Data access layer
+│   ├── services/           # Business logic
+│   └── infrastructure/     # External services (DB, Redis, Logger)
+├── docker-compose.yml      # Container orchestration
+├── Dockerfile             # Application container
+└── api_documentation.md   # Complete API docs
+```
 
 ---
 
-## Business Logic
-
-- **Users** earn points by purchasing credit packages.
-- **Products** can be redeemed using points if the user has enough balance.
-- **Categories** organize products and are used for AI recommendations.
-- **Admins** can create, update, and list credit packages and products, and manage offer statuses.
-- **AI Recommendation**: The system uses an LLM (Large Language Model) to suggest the best product category and point range for a user, based on their current point balance and available categories.
-
----
-
-## Architecture
-
-- **Go (Golang)** backend (Gin framework)
-- **PostgreSQL** for persistent storage
-- **Redis** for caching
-- **Docker Compose** for easy setup
-- **LLM/AI** integration for smart recommendations
-
----
-
-## Setup & Running (Docker Compose)
+## 🚀 Quick Start
 
 ### Prerequisites
+- [Docker](https://www.docker.com/products/docker-desktop) and [Docker Compose](https://docs.docker.com/compose/)
+- (Optional) [Go 1.22+](https://golang.org/dl/) for local development
 
-- [Docker](https://www.docker.com/products/docker-desktop) and [Docker Compose](https://docs.docker.com/compose/) installed
-
-### Steps
+### Setup & Run
 
 1. **Clone the repository:**
-   ```sh
+   ```bash
    git clone https://github.com/yourusername/4sal-reward.git
    cd 4sal-reward
    ```
 
-2. **Start all services:**
-   ```sh
+2. **Configure environment (optional):**
+   ```bash
+   cp .env.example .env
+   # Edit .env to add your OpenAI API key for AI recommendations
+   ```
+
+3. **Start all services:**
+   ```bash
    docker-compose up --build
    ```
 
-   This will:
-   - Build and run the Go app
-   - Start PostgreSQL and Redis
-   - Run database migrations and seed sample data
+4. **Verify the setup:**
+   ```bash
+   curl http://localhost:8080/health
+   ```
 
-3. **Access the API:**
-   - The API will be available at: [http://localhost:8080](http://localhost:8080)
-   - Health check: [http://localhost:8080/health](http://localhost:8080/health)
+The API will be available at `http://localhost:8080` with sample data pre-loaded.
 
 ---
 
-## API Endpoints
+## 📚 API Documentation
+
+### Core Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check |
+| `GET` | `/credits/packages` | List credit packages (paginated) |
+| `POST` | `/credits/purchase` | Purchase credit package |
+| `GET` | `/products/search` | Search products (full-text) |
+| `POST` | `/products/redeem` | Redeem product with points |
+| `POST` | `/ai/recommendation` | Get AI-powered recommendations |
 
 ### Admin Endpoints
 
-| Method | Endpoint                                 | Description                        |
-|--------|------------------------------------------|------------------------------------|
-| POST   | `/admin/packages`                        | Create a new credit package        |
-| PUT    | `/admin/packages/:id`                    | Update a credit package            |
-| POST   | `/admin/products`                        | Create a new product               |
-| PUT    | `/admin/products/:id`                    | Update a product                   |
-| PUT    | `/admin/products/:id/offer-status`       | Update product offer status        |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/admin/packages` | Create credit package |
+| `PUT` | `/admin/packages/:id` | Update credit package |
+| `POST` | `/admin/products` | Create product |
+| `PUT` | `/admin/products/:id` | Update product |
+| `PUT` | `/admin/products/:id/offer-status` | Update offer status |
 
-#### Example: Create Credit Package
+For detailed API documentation with request/response examples, see [api_documentation.md](api_documentation.md).
 
-```http
-POST /admin/packages
-Content-Type: application/json
+---
 
-{
-  "name": "Gold Bundle",
-  "description": "Best value credits",
-  "price": 99.99,
-  "reward_points": 1000
-}
+## 🧪 Testing
+
+### Run Tests
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with coverage
+go test -v -cover ./...
+
+# Run specific package tests
+go test ./internal/repositories/...
 ```
 
-#### Example: Update Credit Package
+### Test Coverage
+The project includes comprehensive unit tests for:
+- Repository layer with sqlmock
+- Service layer with mock repositories
+- Handler layer integration tests
 
-```http
-PUT /admin/packages/{package_id}
-Content-Type: application/json
+---
 
-{
-  "name": "Gold Bundle Updated",
-  "price": 120.00,
-  "is_active": true
-}
+## 🤖 AI Integration
+
+### How It Works
+1. User requests recommendation via `/ai/recommendation`
+2. System fetches user's point balance and available categories
+3. Sends structured prompt to OpenAI GPT-3.5-turbo
+4. AI returns recommended category ID and point range
+5. System provides intelligent product suggestions
+
+### Sample AI Prompt
+```
+Given a user with a current point balance of 1500 and the following available categories:
+[{"id":"1a2b3c4d-...","name":"Electronics"}, {"id":"1a2b3c4d-...","name":"Books"}]
+
+Suggest the most suitable category by its id and a corresponding minimum and maximum point range for products within that category.
+
+Response format: {"recommended_category_id": "string", "min_points_llm": integer, "max_points_llm": integer, "reasoning": "string"}
 ```
 
-#### Example: Create Product
+### Fallback Strategy
+If OpenAI is unavailable, the system falls back to rule-based recommendations ensuring 100% uptime.
 
-```http
-POST /admin/products
-Content-Type: application/json
+---
 
-{
-  "name": "Wireless Headphones",
-  "description": "Premium headphones",
-  "category_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f00010000",
-  "point_cost": 500,
-  "stock_quantity": 20,
-  "is_in_offer_pool": true,
-  "image_url": "https://example.com/headphones.jpg"
-}
+## 🔍 Search Implementation
+
+### Full-Text Search Features
+- **PostgreSQL GIN indexes** for fast text search
+- **Multi-field search** across product names and descriptions
+- **Pagination support** for large datasets
+- **Redis caching** for frequently searched terms
+- **Offer pool filtering** (only redeemable products)
+
+### Performance Optimizations
+- Indexed search fields with `to_tsvector` and `to_tsquery`
+- Redis caching with 5-minute TTL
+- Connection pooling for database
+- Efficient pagination with LIMIT/OFFSET
+
+---
+
+## 📊 Sample Data
+
+The system comes with pre-loaded test data:
+
+### Users
+- **Alice Smith**: 1,500 points
+- **Bob Johnson**: 750 points  
+- **Admin User**: 10,000 points
+
+### Categories
+- Electronics, Books, Gift Cards, Home Goods
+
+### Products
+- Wireless Earbuds (500 pts), E-Reader (800 pts), Gift Cards (1000 pts), etc.
+
+### Credit Packages
+- Bronze (100 pts/$10), Silver (300 pts/$25), Gold (750 pts/$50), Platinum (1500 pts/$100)
+
+---
+
+## 🐳 Docker Configuration
+
+### Services
+- **app**: Go application (port 8080)
+- **postgres**: PostgreSQL database (port 5432)
+- **redis**: Redis cache (port 6379)
+- **migrate**: Database migration runner
+
+### Health Checks
+All services include health checks for reliable startup and monitoring.
+
+---
+
+## 🔧 Development
+
+### Local Development Setup
+```bash
+# Install dependencies
+go mod download
+
+# Run database migrations
+make migrate_up
+
+# Start the server
+make server
+
+# Run tests
+make test
 ```
 
-#### Example: Update Product
-
-```http
-PUT /admin/products/{product_id}
-Content-Type: application/json
-
-{
-  "name": "Wireless Headphones Pro",
-  "stock_quantity": 15,
-  "is_active": true
-}
-```
-
-#### Example: Update Product Offer Status
-
-```http
-PUT /admin/products/{product_id}/offer-status
-Content-Type: application/json
-
-{
-  "is_in_offer_pool": false
-}
+### Environment Variables
+```bash
+DATABASE_URL=postgresql://admin:secret@localhost:5432/rewarddb?sslmode=disable
+REDIS_ADDR=localhost:6379
+OPENAI_API_KEY=your_openai_api_key_here
+GIN_MODE=release
 ```
 
 ---
 
-### User Endpoints
+## 🚀 Scalability Features
 
-| Method | Endpoint                | Description                        |
-|--------|-------------------------|------------------------------------|
-| POST   | `/credits/purchase`     | Purchase a credit package          |
-| POST   | `/products/redeem`      | Redeem a product with points       |
-| GET    | `/products/search`      | Search for products                |
-| GET    | `/credits/packages`     | List credit packages (paginated)   |
+### Database Optimizations
+- **Indexed searches** with GIN indexes for full-text search
+- **Connection pooling** (25 max connections)
+- **Read replicas ready** architecture
+- **Efficient pagination** for large datasets
 
-#### Example: Purchase Credit Package
+### Caching Strategy
+- **Search result caching** with Redis
+- **Cache invalidation** on product updates
+- **TTL-based expiration** (5 minutes)
 
-```http
-POST /credits/purchase
-Content-Type: application/json
+### Performance Monitoring
+- **Structured logging** with Zap
+- **Request timing** and metrics
+- **Health check endpoints**
+- **Database connection monitoring**
 
-{
-  "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-  "package_id": "f2a34b5c-6d7e-8a9b-0c1d-2e4100030000",
-  "amount_paid": 50.00
-}
+---
+
+## 🔒 Security Considerations
+
+### Current Implementation
+- Input validation and sanitization
+- SQL injection prevention with parameterized queries
+- Error handling without information leakage
+- Health check endpoints for monitoring
+
+### Production Recommendations
+- Add JWT authentication
+- Implement rate limiting
+- Add API key management
+- Enable HTTPS/TLS
+- Add request logging and monitoring
+
+---
+
+## 🚀 Deployment
+
+### Production Deployment
+```bash
+# Build for production
+docker-compose -f docker-compose.prod.yml up --build
+
+# Scale the application
+docker-compose up --scale app=3
 ```
 
-#### Example: Redeem Product
+### Environment Configuration
+- Set `OPENAI_API_KEY` for AI features
+- Configure `DATABASE_URL` for external database
+- Set `REDIS_ADDR` for external Redis
+- Enable `GIN_MODE=release` for production
 
-```http
-POST /products/redeem
-Content-Type: application/json
+---
 
-{
-  "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-  "product_id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f200010000",
-  "quantity": 1
-}
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🆘 Troubleshooting
+
+### Common Issues
+
+**Port conflicts:**
+```bash
+# Check if ports are in use
+lsof -i :8080
+lsof -i :5432
+lsof -i :6379
 ```
 
-#### Example: Search Products
+**Database connection issues:**
+```bash
+# Check database logs
+docker-compose logs postgres
 
-```http
-GET /products/search?query=wireless&page=1&size=10
+# Verify database is ready
+docker-compose exec postgres pg_isready -U admin -d rewarddb
 ```
 
-#### Example: List Credit Packages
+**Redis connection issues:**
+```bash
+# Check Redis logs
+docker-compose logs redis
 
-```http
-GET /credits/packages?page=1&size=10
+# Test Redis connection
+docker-compose exec redis redis-cli ping
+```
+
+**Migration failures:**
+```bash
+# Check migration logs
+docker-compose logs migrate
+
+# Manual migration
+docker-compose exec app ./reward-system migrate up
 ```
 
 ---
 
-### AI Recommendation Endpoint
+## 📞 Support
 
-| Method | Endpoint                | Description                        |
-|--------|-------------------------|------------------------------------|
-| POST   | `/ai/recommendation`    | Get AI-powered product suggestion  |
-
-#### Example Request
-
-```http
-POST /ai/recommendation
-Content-Type: application/json
-
-{
-  "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
-}
-```
-
-#### Example Response
-
-```json
-{
-  "recommended_category_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f00010000",
-  "min_points_llm": 400,
-  "max_points_llm": 800,
-  "reasoning": "Based on your point balance and available categories, Electronics is the best fit."
-}
-```
+For questions and support:
+- Create an issue in the GitHub repository
+- Check the [API documentation](api_documentation.md)
+- Review the troubleshooting section above
 
 ---
 
-### Health Check
-
-| Method | Endpoint   | Description         |
-|--------|------------|---------------------|
-| GET    | `/health`  | Service health info |
-
----
-
-## Sample Test Data
-
-The app seeds the database with sample users, credit packages, categories, and products.  
-See [`internal/infrastructure/db/migrations/000002_seed_db.up.sql`](internal/infrastructure/db/migrations/000002_seed_db.up.sql) for details.
-
-**Sample User:**
-- ID: `a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11`
-- Name: Alice Smith
-- Email: user1@example.com
-- Point Balance: 1500
-
-**Sample Categories:**
-- Electronics (`1a2b3c4d-5e6f-7a8b-9c0d-1e2f00010000`)
-- Books (`1a2b3c4d-5e6f-7a8b-9c0d-1e3000020000`)
-- Gift Cards (`1a2b3c4d-5e6f-7a8b-9c0d-1e3100030000`)
-- Home Goods (`1a2b3c4d-5e6f-7a8b-9c0d-1e3200040000`)
-
-**Sample Products:**
-- Wireless Earbuds (Electronics)
-- The Great Novel (Books)
-- E-Reader (Electronics)
-- 10$ Gift Card (Gift Cards)
-- Smart Home Hub (Electronics)
-- Cookbook: Italian Delights (Books)
-
----
-
-## AI Prompt Explanation
-
-When a user requests a recommendation, the backend:
-
-1. Fetches all available categories (with IDs and names).
-2. Sends the user's point balance and the categories list to the LLM (AI model).
-3. The LLM is prompted to select the **category ID** and a point range for the user, returning a JSON like:
-   ```json
-   {
-     "recommended_category_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f00010000",
-     "min_points_llm": 400,
-     "max_points_llm": 800,
-     "reasoning": "Electronics is a good fit for your balance."
-   }
-   ```
-4. The backend uses the recommended category ID and point range to fetch and suggest products.
-
-**Prompt Example:**
-```
-Given a user with a current point balance of 1500 and the following available categories (each with an id and name): [{"id":"1a2b3c4d-...","name":"Electronics"},...], suggest the most suitable category by its id and a corresponding minimum and maximum point range for products within that category. Ensure the response is a JSON object with the following fields: {"recommended_category_id": "string", "min_points_llm": "integer", "max_points_llm": "integer", "reasoning": "string"}.
-```
-
----
-
-## Troubleshooting
-
-- **Ports in use:** Make sure port 8080 is free or change it in `docker-compose.yml`.
-- **Database errors:** Check logs for migration or connection issues.
-- **Redis errors:** Ensure Redis is running and accessible.
-- **AI errors:** If using a real LLM, ensure API keys and endpoints are configured.
-
----
-
-**Enjoy building with 4sal Reward System!**
+**Built with ❤️ for 4sal by the development team**

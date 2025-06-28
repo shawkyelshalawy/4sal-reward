@@ -12,19 +12,30 @@ func SetupRoutes(
 	creditService *services.CreditService,
 	productService *services.ProductService,
 	userRepo *repositories.UserRepository,
+	categoryRepo *repositories.CategoryRepository,
 ) {
 	creditHandler := &handlers.CreditHandler{CreditService: creditService}
 	productHandler := &handlers.ProductHandler{ProductService: productService}
 	adminHandler := &handlers.AdminHandler{
 		ProductService: productService,
 		CreditService:  creditService,
-	}	
+	}
+	aiHandler := &handlers.AIHandler{
+		ProductService: productService,
+		UserRepo:       userRepo,
+		CategoryRepo:   categoryRepo,
+	}
 
+	// User endpoints
 	router.POST("/credits/purchase", creditHandler.PurchaseCreditPackage)
 	router.POST("/products/redeem", productHandler.RedeemProduct)
 	router.GET("/products/search", productHandler.SearchProducts)
 	router.GET("/credits/packages", creditHandler.GetCreditPackages)
 
+	// AI recommendation endpoint
+	router.POST("/ai/recommendation", aiHandler.GetRecommendation)
+
+	// Admin endpoints
 	admin := router.Group("/admin")
 	{
 		admin.POST("/packages", adminHandler.CreateCreditPackage)
@@ -33,5 +44,4 @@ func SetupRoutes(
 		admin.PUT("/packages/:id", adminHandler.UpdateCreditPackage)
 		admin.PUT("/products/:id", adminHandler.UpdateProduct)
 	}
-
 }

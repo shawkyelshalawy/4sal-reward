@@ -1,7 +1,14 @@
 package handlers
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,12 +19,40 @@ import (
 type AIHandler struct {
 	ProductService *services.ProductService
 	UserRepo       *repositories.UserRepository
+	CategoryRepo   *repositories.CategoryRepository
+}
+
+type AIRecommendationRequest struct {
+	UserID string `json:"user_id" binding:"required"`
+}
+
+type AIRecommendationResponse struct {
+	RecommendedCategoryID string `json:"recommended_category_id"`
+	MinPointsLLM         int    `json:"min_points_llm"`
+	MaxPointsLLM         int    `json:"max_points_llm"`
+	Reasoning            string `json:"reasoning"`
+}
+
+type OpenAIRequest struct {
+	Model    string    `json:"model"`
+	Messages []Message `json:"messages"`
+}
+
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type OpenAIResponse struct {
+	Choices []Choice `json:"choices"`
+}
+
+type Choice struct {
+	Message Message `json:"message"`
 }
 
 func (h *AIHandler) GetRecommendation(c *gin.Context) {
-	var req struct {
-		UserID string `json:"user_id" binding:"required"`
-	}
+	var req AIRecommendationRequest
 	
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
@@ -37,44 +72,130 @@ func (h *AIHandler) GetRecommendation(c *gin.Context) {
 		return
 	}
 	
-	recommendation := h.getSimpleRecommendation(user.PointBalance)
+	// Get all categories
+	categories, err := h.CategoryRepo.GetAll(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
+		return
+	}
 	
-	c.JSON(http.StatusOK, gin.H{
-		"user_id":         userID,
-		"point_balance":   user.PointBalance,
-		"recommendation": recommendation,
-		"reason":         "Based on your current point balance and popular products",
-	})
+	// Get AI recommendation
+	recommendation, err := h.getAIRecommendation(c.Request.Context(), user.PointBalance, categories)
+	if err != nil {
+		// Fallback to simple recommendation if AI fails
+		recommendation = h.getSimpleRecommendation(user.PointBalance, categories)
+	}
+	
+	c.JSON(http.StatusOK, recommendation)
 }
 
-// Simple recommendation logic (replace with actual AI service call)
-func (h *AIHandler) getSimpleRecommendation(pointBalance int) map[string]interface{} {
+func (h *AIHandler) getAIRecommendation(ctx context.Context, pointBalance int, categories []interface{}) (*AIRecommendationResponse, error) {
+	openaiKey := os.Getenv("OPENAI_API_KEY")
+	if openaiKey == "" {
+		return nil, fmt.Errorf("OpenAI API key not configured")
+	}
+	
+	// Prepare categories for prompt
+	categoriesJSON, _ := json.Marshal(categories)
+	
+	prompt := fmt.Sprintf(`Given a user with a current point balance of %d and the following available categories (each with an id and name): %s, suggest the most suitable category by its id and a corresponding minimum and maximum point range for products within that category. 
+
+Consider the user's point balance and recommend a category that offers good value. The point range should be realistic for products in that category.
+
+Ensure the response is a JSON object with the following fields: {"recommended_category_id": "string", "min_points_llm": "integer", "max_points_llm": "integer", "reasoning": "string"}.`, 
+		pointBalance, string(categoriesJSON))
+	
+	reqBody := OpenAIRequest{
+		Model: "gpt-3.5-turbo",
+		Messages: []Message{
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
+	}
+	
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, err
+	}
+	
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+openaiKey)
+	
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	
+	var openaiResp OpenAIResponse
+	if err := json.Unmarshal(body, &openaiResp); err != nil {
+		return nil, err
+	}
+	
+	if len(openaiResp.Choices) == 0 {
+		return nil, fmt.Errorf("no response from OpenAI")
+	}
+	
+	var recommendation AIRecommendationResponse
+	if err := json.Unmarshal([]byte(openaiResp.Choices[0].Message.Content), &recommendation); err != nil {
+		return nil, err
+	}
+	
+	return &recommendation, nil
+}
+
+// Simple recommendation logic (fallback when AI is not available)
+func (h *AIHandler) getSimpleRecommendation(pointBalance int, categories []interface{}) *AIRecommendationResponse {
+	// Default to first category if available
+	var categoryID string
+	if len(categories) > 0 {
+		if cat, ok := categories[0].(map[string]interface{}); ok {
+			if id, exists := cat["id"]; exists {
+				categoryID = fmt.Sprintf("%v", id)
+			}
+		}
+	}
+	
 	if pointBalance >= 1000 {
-		return map[string]interface{}{
-			"message":    "You have enough points for premium products! Consider high-value electronics or gadgets.",
-			"category":   "Electronics",
-			"min_points": 500,
-			"max_points": 1500,
+		return &AIRecommendationResponse{
+			RecommendedCategoryID: categoryID,
+			MinPointsLLM:         500,
+			MaxPointsLLM:         1500,
+			Reasoning:            "You have enough points for premium products! Consider high-value electronics or gadgets.",
 		}
 	} else if pointBalance >= 500 {
-		return map[string]interface{}{
-			"message":    "Great! You can redeem mid-range products like accessories or books.",
-			"category":   "Accessories",
-			"min_points": 200,
-			"max_points": 600,
+		return &AIRecommendationResponse{
+			RecommendedCategoryID: categoryID,
+			MinPointsLLM:         200,
+			MaxPointsLLM:         600,
+			Reasoning:            "Great! You can redeem mid-range products like accessories or books.",
 		}
 	} else if pointBalance >= 100 {
-		return map[string]interface{}{
-			"message":    "You can redeem small items or save up for bigger rewards!",
-			"category":   "Small Items",
-			"min_points": 50,
-			"max_points": 150,
+		return &AIRecommendationResponse{
+			RecommendedCategoryID: categoryID,
+			MinPointsLLM:         50,
+			MaxPointsLLM:         150,
+			Reasoning:            "You can redeem small items or save up for bigger rewards!",
 		}
 	} else {
-		return map[string]interface{}{
-			"message":    "Keep earning points! Consider purchasing more credit packages.",
-			"category":   "Credit Packages",
-			"suggestion": "Buy more credits to earn reward points",
+		return &AIRecommendationResponse{
+			RecommendedCategoryID: categoryID,
+			MinPointsLLM:         0,
+			MaxPointsLLM:         100,
+			Reasoning:            "Keep earning points! Consider purchasing more credit packages.",
 		}
 	}
 }
