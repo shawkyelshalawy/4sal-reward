@@ -1,0 +1,124 @@
+### Enhanced API Examples with Structured Responses
+
+### Health Check
+GET http://localhost:8080/health
+
+### List Credit Packages (Enhanced Response)
+GET http://localhost:8080/credits/packages?page=1&size=5
+
+### Purchase Credit Package (Enhanced Response)
+POST http://localhost:8080/credits/purchase
+Content-Type: application/json
+
+{
+  "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+  "package_id": "f2a34b5c-6d7e-8a9b-0c1d-2e4100030000",
+  "amount_paid": 50.00
+}
+
+### Search Products (Enhanced Response)
+GET http://localhost:8080/products/search?query=wireless&page=1&size=5
+
+### Redeem Product (Enhanced Response)
+POST http://localhost:8080/products/redeem
+Content-Type: application/json
+
+{
+  "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+  "product_id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f200010000",
+  "quantity": 1
+}
+
+### AI Recommendation with Enhanced Error Handling and Logging
+POST http://localhost:8080/ai/recommendation
+Content-Type: application/json
+
+{
+  "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+}
+
+### AI Recommendation - Test Error Handling (Invalid User ID)
+POST http://localhost:8080/ai/recommendation
+Content-Type: application/json
+
+{
+  "user_id": "invalid-uuid"
+}
+
+### AI Recommendation - Test Error Handling (Non-existent User)
+POST http://localhost:8080/ai/recommendation
+Content-Type: application/json
+
+{
+  "user_id": "00000000-0000-0000-0000-000000000000"
+}
+
+### AI Recommendation - Test with Lower Point Balance User
+POST http://localhost:8080/ai/recommendation
+Content-Type: application/json
+
+{
+  "user_id": "b1c9de00-0a1b-4c2d-8e3f-9a0b1c2d3e4f"
+}
+
+### Expected Enhanced Response Format:
+###
+### {
+###   "success": true,
+###   "message": "AI recommendation generated successfully",
+###   "data": {
+###     "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+###     "point_balance": 1500,
+###     "recommended_category_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f00010000",
+###     "category_name": "Electronics",
+###     "min_points_llm": 400,
+###     "max_points_llm": 800,
+###     "reasoning": "Based on your point balance...",
+###     "recommended_products": [...],
+###     "total_products": 3,
+###     "ai_provider": "gemini-1.5-flash",
+###     "processing_time_ms": 1250
+###   },
+###   "timestamp": "2024-01-15T10:30:00Z",
+###   "request_id": "req_1705312200_a1b2c3d4"
+### }
+
+### Error Response Format:
+###
+### {
+###   "success": false,
+###   "message": "AI recommendation failed",
+###   "error": {
+###     "code": "INVALID_USER_ID",
+###     "message": "Invalid user ID format",
+###     "details": "invalid UUID length: 12",
+###     "suggestion": "Please provide a valid UUID format for user_id"
+###   },
+###   "timestamp": "2024-01-15T10:30:00Z",
+###   "request_id": "req_1705312200_a1b2c3d4"
+### }
+
+### Admin: Create Credit Package (Enhanced Response)
+POST http://localhost:8080/admin/packages
+Content-Type: application/json
+
+{
+  "name": "Diamond Bundle",
+  "description": "Ultimate premium package with maximum rewards",
+  "price": 200.00,
+  "reward_points": 3000
+}
+
+### Admin: Create Product (Enhanced Response)
+POST http://localhost:8080/admin/products
+Content-Type: application/json
+
+{
+  "name": "Gaming Keyboard",
+  "description": "Mechanical gaming keyboard with RGB backlighting",
+  "category_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f00010000",
+  "point_cost": 700,
+  "stock_quantity": 25,
+  "is_in_offer_pool": true,
+  "image_url": "https://placehold.co/300x200/cccccc/333333?text=Gaming+Keyboard"
+}

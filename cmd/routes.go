@@ -14,17 +14,14 @@ func SetupRoutes(
 	userRepo *repositories.UserRepository,
 	categoryRepo *repositories.CategoryRepository,
 ) {
-	creditHandler := &handlers.CreditHandler{CreditService: creditService}
-	productHandler := &handlers.ProductHandler{ProductService: productService}
+	// Initialize handlers with proper dependency injection
+	creditHandler := handlers.NewCreditHandler(creditService)
+	productHandler := handlers.NewProductHandler(productService)
 	adminHandler := &handlers.AdminHandler{
 		ProductService: productService,
 		CreditService:  creditService,
 	}
-	aiHandler := &handlers.AIHandler{
-		ProductService: productService,
-		UserRepo:       userRepo,
-		CategoryRepo:   categoryRepo,
-	}
+	aiHandler := handlers.NewAIHandler(productService, userRepo, categoryRepo)
 
 	// User endpoints
 	router.POST("/credits/purchase", creditHandler.PurchaseCreditPackage)
