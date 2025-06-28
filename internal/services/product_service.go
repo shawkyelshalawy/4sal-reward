@@ -89,6 +89,10 @@ func (s *ProductService) GetProducts(ctx context.Context, page, size int, isActi
 	return s.ProductRepo.GetProducts(ctx, page, size, isActive, isInOfferPool, categoryID)
 }
 
+// GetProductsByCategory retrieves products by category ID with pagination
+func (s *ProductService) GetProductsByCategory(ctx context.Context, categoryID uuid.UUID, page, size int) ([]models.Product, int, error) {
+	return s.ProductRepo.GetProductsByCategory(ctx, categoryID, page, size)
+}
 
 func (s *ProductService) clearProductCache(ctx context.Context) {
 	// Get all keys matching the pattern

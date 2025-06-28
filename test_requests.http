@@ -27,12 +27,20 @@ Content-Type: application/json
   "quantity": 1
 }
 
-### AI Recommendation
+### AI Recommendation with Category Products
 POST http://localhost:8080/ai/recommendation
 Content-Type: application/json
 
 {
   "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+}
+
+### AI Recommendation for User with Lower Points
+POST http://localhost:8080/ai/recommendation
+Content-Type: application/json
+
+{
+  "user_id": "b1c9de00-0a1b-4c2d-8e3f-9a0b1c2d3e4f"
 }
 
 ### Admin: Create Credit Package

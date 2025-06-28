@@ -135,7 +135,7 @@ POST /products/redeem
 
 ### AI Recommendations (Powered by Google Gemini)
 
-#### Get AI Recommendation
+#### Get AI Recommendation with Category Products
 ```http
 POST /ai/recommendation
 ```
@@ -150,18 +150,56 @@ POST /ai/recommendation
 **Response:**
 ```json
 {
+  "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+  "point_balance": 1500,
   "recommended_category_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f00010000",
+  "category_name": "Electronics",
   "min_points_llm": 400,
   "max_points_llm": 800,
-  "reasoning": "Based on your point balance of 1500, Electronics category offers the best value with products ranging from 400-800 points, allowing you to make multiple purchases or save for premium items."
+  "reasoning": "Based on your point balance of 1500, Electronics category offers the best value with products ranging from 400-800 points, allowing you to make multiple purchases or save for premium items.",
+  "recommended_products": [
+    {
+      "id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f200010000",
+      "name": "Wireless Earbuds",
+      "description": "High-quality sound with noise cancellation.",
+      "point_cost": 500,
+      "image_url": "https://placehold.co/300x200/cccccc/333333?text=Earbuds",
+      "in_stock": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f400030000",
+      "name": "E-Reader",
+      "description": "Lightweight device for digital reading.",
+      "point_cost": 800,
+      "image_url": "https://placehold.co/300x200/cccccc/333333?text=E-Reader",
+      "in_stock": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f600050000",
+      "name": "Smart Home Hub",
+      "description": "Central control for smart devices.",
+      "point_cost": 1200,
+      "image_url": "https://placehold.co/300x200/cccccc/333333?text=SmartHub",
+      "in_stock": true
+    }
+  ],
+  "total_products": 3
 }
 ```
+
+**Enhanced AI Features:**
+- **Complete Category Display**: Shows all available products in the recommended category
+- **Stock Information**: Indicates whether each product is currently in stock
+- **Sorted by Value**: Products are sorted by point cost (ascending) for easy browsing
+- **Category Context**: Includes category name for better user understanding
+- **User Context**: Shows user's current point balance for informed decisions
 
 **AI Integration Details:**
 - **Model**: Google Gemini 1.5 Flash
 - **Fallback**: Rule-based recommendations if AI is unavailable
 - **Response Time**: Typically 1-3 seconds
 - **Context**: User's point balance and available product categories
+- **Product Filtering**: Only shows active products in the offer pool
 
 ---
 
@@ -353,14 +391,32 @@ Ensure the response is a JSON object with the following fields:
 Only return the JSON object, no additional text.
 ```
 
-**Response Processing:**
+**Enhanced Response Processing:**
 - JSON parsing with error handling
 - Fallback to rule-based logic if AI fails
 - Validation of category IDs against database
 - Point range validation for reasonableness
+- **Category product fetching** for complete user experience
+- **Stock status checking** for each product
+- **Sorting by point cost** for optimal user browsing
 
 **Performance Considerations:**
 - 30-second timeout for AI requests
 - Graceful degradation to simple recommendations
-- Caching of AI responses (future enhancement)
+- Efficient database queries for category products
+- Redis caching for improved performance
 - Rate limiting protection (future enhancement)
+
+---
+
+## Complete User Journey
+
+### AI Recommendation Flow
+1. **User Request**: User provides their ID for recommendation
+2. **Context Gathering**: System fetches user's point balance and available categories
+3. **AI Processing**: Gemini AI analyzes and recommends optimal category
+4. **Product Fetching**: System retrieves all products in recommended category
+5. **Enhanced Response**: User receives recommendation with complete product catalog
+6. **Informed Decision**: User can immediately browse and redeem products
+
+This enhanced flow provides a seamless experience from AI recommendation to product selection and redemption.

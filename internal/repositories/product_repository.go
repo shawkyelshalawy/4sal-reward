@@ -190,7 +190,6 @@ func (r *ProductRepository) RedeemProduct(ctx context.Context, userID, productID
     return tx.Commit()
 }
 
-
 func (r *ProductRepository) UpdateProduct(ctx context.Context, productID uuid.UUID, name, description *string, categoryID *uuid.UUID, pointCost, stockQuantity *int, isActive, isInOfferPool *bool, imageURL *string) error {
 	var setParts []string
 	var args []interface{}
@@ -329,6 +328,56 @@ func (r *ProductRepository) GetProducts(ctx context.Context, page, size int, isA
                           FROM products %s%s`, whereClause, limitOffset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var products []models.Product
+	for rows.Next() {
+		var product models.Product
+		err := rows.Scan(
+			&product.ID,
+			&product.Name,
+			&product.Description,
+			&product.CategoryID,
+			&product.PointCost,
+			&product.StockQuantity,
+			&product.IsActive,
+			&product.IsInOfferPool,
+			&product.ImageURL,
+			&product.CreatedAt,
+			&product.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		products = append(products, product)
+	}
+
+	return products, total, nil
+}
+
+// GetProductsByCategory retrieves products by category ID with pagination
+func (r *ProductRepository) GetProductsByCategory(ctx context.Context, categoryID uuid.UUID, page, size int) ([]models.Product, int, error) {
+	// Get total count for the category
+	countQuery := `SELECT COUNT(*) FROM products WHERE category_id = $1 AND is_active = true AND is_in_offer_pool = true`
+	var total int
+	err := r.db.QueryRowContext(ctx, countQuery, categoryID).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get products with pagination
+	offset := (page - 1) * size
+	query := `SELECT id, name, description, category_id, point_cost, stock_quantity, 
+                     is_active, is_in_offer_pool, image_url, created_at, updated_at 
+              FROM products 
+              WHERE category_id = $1 AND is_active = true AND is_in_offer_pool = true
+              ORDER BY point_cost ASC, name ASC
+              LIMIT $2 OFFSET $3`
+
+	rows, err := r.db.QueryContext(ctx, query, categoryID, size, offset)
 	if err != nil {
 		return nil, 0, err
 	}

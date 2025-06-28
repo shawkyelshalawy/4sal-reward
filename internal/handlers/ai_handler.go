@@ -26,10 +26,24 @@ type AIRecommendationRequest struct {
 }
 
 type AIRecommendationResponse struct {
-	RecommendedCategoryID string `json:"recommended_category_id"`
-	MinPointsLLM         int    `json:"min_points_llm"`
-	MaxPointsLLM         int    `json:"max_points_llm"`
-	Reasoning            string `json:"reasoning"`
+	UserID                string                 `json:"user_id"`
+	PointBalance          int                    `json:"point_balance"`
+	RecommendedCategoryID string                 `json:"recommended_category_id"`
+	CategoryName          string                 `json:"category_name"`
+	MinPointsLLM          int                    `json:"min_points_llm"`
+	MaxPointsLLM          int                    `json:"max_points_llm"`
+	Reasoning             string                 `json:"reasoning"`
+	RecommendedProducts   []ProductSummary       `json:"recommended_products"`
+	TotalProducts         int                    `json:"total_products"`
+}
+
+type ProductSummary struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	PointCost   int    `json:"point_cost"`
+	ImageURL    string `json:"image_url"`
+	InStock     bool   `json:"in_stock"`
 }
 
 type GeminiRequest struct {
@@ -50,6 +64,13 @@ type GeminiResponse struct {
 
 type GeminiCandidate struct {
 	Content GeminiContent `json:"content"`
+}
+
+type SimpleAIResponse struct {
+	RecommendedCategoryID string `json:"recommended_category_id"`
+	MinPointsLLM         int    `json:"min_points_llm"`
+	MaxPointsLLM         int    `json:"max_points_llm"`
+	Reasoning            string `json:"reasoning"`
 }
 
 func (h *AIHandler) GetRecommendation(c *gin.Context) {
@@ -81,16 +102,63 @@ func (h *AIHandler) GetRecommendation(c *gin.Context) {
 	}
 	
 	// Get AI recommendation
-	recommendation, err := h.getGeminiRecommendation(c.Request.Context(), user.PointBalance, categories)
+	aiRecommendation, err := h.getGeminiRecommendation(c.Request.Context(), user.PointBalance, categories)
 	if err != nil {
 		// Fallback to simple recommendation if AI fails
-		recommendation = h.getSimpleRecommendation(user.PointBalance, categories)
+		aiRecommendation = h.getSimpleRecommendation(user.PointBalance, categories)
 	}
 	
-	c.JSON(http.StatusOK, recommendation)
+	// Parse recommended category ID
+	recommendedCategoryID, err := uuid.Parse(aiRecommendation.RecommendedCategoryID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid category ID from recommendation"})
+		return
+	}
+	
+	// Get category details
+	category, err := h.CategoryRepo.GetByID(c.Request.Context(), recommendedCategoryID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch category details"})
+		return
+	}
+	
+	// Get products in the recommended category
+	products, totalProducts, err := h.ProductService.GetProductsByCategory(c.Request.Context(), recommendedCategoryID, 1, 20)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch category products"})
+		return
+	}
+	
+	// Convert products to summary format
+	var productSummaries []ProductSummary
+	for _, product := range products {
+		productSummaries = append(productSummaries, ProductSummary{
+			ID:          product.ID.String(),
+			Name:        product.Name,
+			Description: product.Description,
+			PointCost:   product.PointCost,
+			ImageURL:    product.ImageURL,
+			InStock:     product.StockQuantity > 0,
+		})
+	}
+	
+	// Build complete response
+	response := AIRecommendationResponse{
+		UserID:                req.UserID,
+		PointBalance:          user.PointBalance,
+		RecommendedCategoryID: aiRecommendation.RecommendedCategoryID,
+		CategoryName:          category.Name,
+		MinPointsLLM:          aiRecommendation.MinPointsLLM,
+		MaxPointsLLM:          aiRecommendation.MaxPointsLLM,
+		Reasoning:             aiRecommendation.Reasoning,
+		RecommendedProducts:   productSummaries,
+		TotalProducts:         totalProducts,
+	}
+	
+	c.JSON(http.StatusOK, response)
 }
 
-func (h *AIHandler) getGeminiRecommendation(ctx context.Context, pointBalance int, categories []interface{}) (*AIRecommendationResponse, error) {
+func (h *AIHandler) getGeminiRecommendation(ctx context.Context, pointBalance int, categories []interface{}) (*SimpleAIResponse, error) {
 	geminiKey := "AIzaSyCCLOJCy5DwAUoSFgInnqbW7AkQJQyt_-Q"
 	
 	// Prepare categories for prompt
@@ -158,7 +226,7 @@ Only return the JSON object, no additional text.`,
 	
 	responseText := geminiResp.Candidates[0].Content.Parts[0].Text
 	
-	var recommendation AIRecommendationResponse
+	var recommendation SimpleAIResponse
 	if err := json.Unmarshal([]byte(responseText), &recommendation); err != nil {
 		return nil, fmt.Errorf("failed to parse Gemini response: %v", err)
 	}
@@ -167,7 +235,7 @@ Only return the JSON object, no additional text.`,
 }
 
 // Simple recommendation logic (fallback when AI is not available)
-func (h *AIHandler) getSimpleRecommendation(pointBalance int, categories []interface{}) *AIRecommendationResponse {
+func (h *AIHandler) getSimpleRecommendation(pointBalance int, categories []interface{}) *SimpleAIResponse {
 	// Default to first category if available
 	var categoryID string
 	if len(categories) > 0 {
@@ -179,28 +247,28 @@ func (h *AIHandler) getSimpleRecommendation(pointBalance int, categories []inter
 	}
 	
 	if pointBalance >= 1000 {
-		return &AIRecommendationResponse{
+		return &SimpleAIResponse{
 			RecommendedCategoryID: categoryID,
 			MinPointsLLM:         500,
 			MaxPointsLLM:         1500,
 			Reasoning:            "You have enough points for premium products! Consider high-value electronics or gadgets.",
 		}
 	} else if pointBalance >= 500 {
-		return &AIRecommendationResponse{
+		return &SimpleAIResponse{
 			RecommendedCategoryID: categoryID,
 			MinPointsLLM:         200,
 			MaxPointsLLM:         600,
 			Reasoning:            "Great! You can redeem mid-range products like accessories or books.",
 		}
 	} else if pointBalance >= 100 {
-		return &AIRecommendationResponse{
+		return &SimpleAIResponse{
 			RecommendedCategoryID: categoryID,
 			MinPointsLLM:         50,
 			MaxPointsLLM:         150,
 			Reasoning:            "You can redeem small items or save up for bigger rewards!",
 		}
 	} else {
-		return &AIRecommendationResponse{
+		return &SimpleAIResponse{
 			RecommendedCategoryID: categoryID,
 			MinPointsLLM:         0,
 			MaxPointsLLM:         100,
