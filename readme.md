@@ -33,8 +33,8 @@ It allows users to purchase credit packages, redeem products using points, and g
 - **Users** earn points by purchasing credit packages.
 - **Products** can be redeemed using points if the user has enough balance.
 - **Categories** organize products and are used for AI recommendations.
-- **Admins** can create credit packages and products, and manage offer statuses.
-- **AI Recommendation**: The system uses an LLM (Large Language Model) to suggest the best product category and point range for a user, based on their current point balance and available categories.(In progress)
+- **Admins** can create, update, and list credit packages and products, and manage offer statuses.
+- **AI Recommendation**: The system uses an LLM (Large Language Model) to suggest the best product category and point range for a user, based on their current point balance and available categories.
 
 ---
 
@@ -82,11 +82,13 @@ It allows users to purchase credit packages, redeem products using points, and g
 
 ### Admin Endpoints
 
-| Method | Endpoint                        | Description                        |
-|--------|---------------------------------|------------------------------------|
-| POST   | `/admin/packages`               | Create a new credit package        |
-| POST   | `/admin/products`               | Create a new product               |
-| PUT    | `/admin/products/:id/offer-status` | Update product offer status    |
+| Method | Endpoint                                 | Description                        |
+|--------|------------------------------------------|------------------------------------|
+| POST   | `/admin/packages`                        | Create a new credit package        |
+| PUT    | `/admin/packages/:id`                    | Update a credit package            |
+| POST   | `/admin/products`                        | Create a new product               |
+| PUT    | `/admin/products/:id`                    | Update a product                   |
+| PUT    | `/admin/products/:id/offer-status`       | Update product offer status        |
 
 #### Example: Create Credit Package
 
@@ -99,6 +101,19 @@ Content-Type: application/json
   "description": "Best value credits",
   "price": 99.99,
   "reward_points": 1000
+}
+```
+
+#### Example: Update Credit Package
+
+```http
+PUT /admin/packages/{package_id}
+Content-Type: application/json
+
+{
+  "name": "Gold Bundle Updated",
+  "price": 120.00,
+  "is_active": true
 }
 ```
 
@@ -119,6 +134,30 @@ Content-Type: application/json
 }
 ```
 
+#### Example: Update Product
+
+```http
+PUT /admin/products/{product_id}
+Content-Type: application/json
+
+{
+  "name": "Wireless Headphones Pro",
+  "stock_quantity": 15,
+  "is_active": true
+}
+```
+
+#### Example: Update Product Offer Status
+
+```http
+PUT /admin/products/{product_id}/offer-status
+Content-Type: application/json
+
+{
+  "is_in_offer_pool": false
+}
+```
+
 ---
 
 ### User Endpoints
@@ -128,6 +167,7 @@ Content-Type: application/json
 | POST   | `/credits/purchase`     | Purchase a credit package          |
 | POST   | `/products/redeem`      | Redeem a product with points       |
 | GET    | `/products/search`      | Search for products                |
+| GET    | `/credits/packages`     | List credit packages (paginated)   |
 
 #### Example: Purchase Credit Package
 
@@ -159,6 +199,12 @@ Content-Type: application/json
 
 ```http
 GET /products/search?query=wireless&page=1&size=10
+```
+
+#### Example: List Credit Packages
+
+```http
+GET /credits/packages?page=1&size=10
 ```
 
 ---
@@ -258,7 +304,6 @@ Given a user with a current point balance of 1500 and the following available ca
 - **Database errors:** Check logs for migration or connection issues.
 - **Redis errors:** Ensure Redis is running and accessible.
 - **AI errors:** If using a real LLM, ensure API keys and endpoints are configured.
-
 
 ---
 

@@ -79,3 +79,25 @@ func (s *ProductService) CreateProduct(ctx context.Context, name, description st
 func (s *ProductService) UpdateOfferStatus(ctx context.Context, productID uuid.UUID, isInOfferPool bool) error {
     return s.ProductRepo.UpdateOfferStatus(ctx, productID, isInOfferPool)
 }
+
+func (s *ProductService) UpdateProduct(ctx context.Context, productID uuid.UUID, name, description *string, categoryID *uuid.UUID, pointCost, stockQuantity *int, isActive, isInOfferPool *bool, imageURL *string) error {
+	s.clearProductCache(ctx)
+	return s.ProductRepo.UpdateProduct(ctx, productID, name, description, categoryID, pointCost, stockQuantity, isActive, isInOfferPool, imageURL)
+}
+
+func (s *ProductService) GetProducts(ctx context.Context, page, size int, isActive, isInOfferPool, categoryID string) ([]models.Product, int, error) {
+	return s.ProductRepo.GetProducts(ctx, page, size, isActive, isInOfferPool, categoryID)
+}
+
+
+func (s *ProductService) clearProductCache(ctx context.Context) {
+	// Get all keys matching the pattern
+	keys, err := s.RedisClient.Keys(ctx, productSearchCachePrefix+"*").Result()
+	if err != nil {
+		return
+	}
+	
+	if len(keys) > 0 {
+		s.RedisClient.Del(ctx, keys...)
+	}
+}

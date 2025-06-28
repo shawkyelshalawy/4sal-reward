@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -186,4 +188,173 @@ func (r *ProductRepository) RedeemProduct(ctx context.Context, userID, productID
     }
 
     return tx.Commit()
+}
+
+
+func (r *ProductRepository) UpdateProduct(ctx context.Context, productID uuid.UUID, name, description *string, categoryID *uuid.UUID, pointCost, stockQuantity *int, isActive, isInOfferPool *bool, imageURL *string) error {
+	var setParts []string
+	var args []interface{}
+	argIndex := 1
+
+	if name != nil {
+		setParts = append(setParts, fmt.Sprintf("name = $%d", argIndex))
+		args = append(args, *name)
+		argIndex++
+	}
+	
+	if description != nil {
+		setParts = append(setParts, fmt.Sprintf("description = $%d", argIndex))
+		args = append(args, *description)
+		argIndex++
+	}
+	
+	if categoryID != nil {
+		setParts = append(setParts, fmt.Sprintf("category_id = $%d", argIndex))
+		args = append(args, *categoryID)
+		argIndex++
+	}
+	
+	if pointCost != nil {
+		setParts = append(setParts, fmt.Sprintf("point_cost = $%d", argIndex))
+		args = append(args, *pointCost)
+		argIndex++
+	}
+	
+	if stockQuantity != nil {
+		setParts = append(setParts, fmt.Sprintf("stock_quantity = $%d", argIndex))
+		args = append(args, *stockQuantity)
+		argIndex++
+	}
+	
+	if isActive != nil {
+		setParts = append(setParts, fmt.Sprintf("is_active = $%d", argIndex))
+		args = append(args, *isActive)
+		argIndex++
+	}
+	
+	if isInOfferPool != nil {
+		setParts = append(setParts, fmt.Sprintf("is_in_offer_pool = $%d", argIndex))
+		args = append(args, *isInOfferPool)
+		argIndex++
+	}
+	
+	if imageURL != nil {
+		setParts = append(setParts, fmt.Sprintf("image_url = $%d", argIndex))
+		args = append(args, *imageURL)
+		argIndex++
+	}
+
+	if len(setParts) == 0 {
+		return fmt.Errorf("no fields to update")
+	}
+
+	// Add updated_at field
+	setParts = append(setParts, fmt.Sprintf("updated_at = $%d", argIndex))
+	args = append(args, time.Now())
+	argIndex++
+
+	// Add product ID for WHERE clause
+	args = append(args, productID)
+
+	query := fmt.Sprintf("UPDATE products SET %s WHERE id = $%d", strings.Join(setParts, ", "), argIndex)
+	
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("product not found")
+	}
+
+	return nil
+}
+
+// GetProducts retrieves products with pagination and filters
+func (r *ProductRepository) GetProducts(ctx context.Context, page, size int, isActive, isInOfferPool, categoryID string) ([]models.Product, int, error) {
+	// Build WHERE clause dynamically
+	var whereClauses []string
+	var args []interface{}
+	argIndex := 1
+
+	if isActive != "" {
+		whereClauses = append(whereClauses, fmt.Sprintf("is_active = $%d", argIndex))
+		args = append(args, isActive == "true")
+		argIndex++
+	}
+
+	if isInOfferPool != "" {
+		whereClauses = append(whereClauses, fmt.Sprintf("is_in_offer_pool = $%d", argIndex))
+		args = append(args, isInOfferPool == "true")
+		argIndex++
+	}
+
+	if categoryID != "" {
+		if categoryID == "null" {
+			whereClauses = append(whereClauses, "category_id IS NULL")
+		} else {
+			whereClauses = append(whereClauses, fmt.Sprintf("category_id = $%d", argIndex))
+			if parsedUUID, err := uuid.Parse(categoryID); err == nil {
+				args = append(args, parsedUUID)
+				argIndex++
+			}
+		}
+	}
+
+	whereClause := ""
+	if len(whereClauses) > 0 {
+		whereClause = "WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
+	// Get total count
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM products %s", whereClause)
+	var total int
+	err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Add pagination parameters
+	args = append(args, size, (page-1)*size)
+	limitOffset := fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
+
+	// Get products with pagination
+	query := fmt.Sprintf(`SELECT id, name, description, category_id, point_cost, stock_quantity, 
+                                 is_active, is_in_offer_pool, image_url, created_at, updated_at 
+                          FROM products %s%s`, whereClause, limitOffset)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var products []models.Product
+	for rows.Next() {
+		var product models.Product
+		err := rows.Scan(
+			&product.ID,
+			&product.Name,
+			&product.Description,
+			&product.CategoryID,
+			&product.PointCost,
+			&product.StockQuantity,
+			&product.IsActive,
+			&product.IsInOfferPool,
+			&product.ImageURL,
+			&product.CreatedAt,
+			&product.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		products = append(products, product)
+	}
+
+	return products, total, nil
 }

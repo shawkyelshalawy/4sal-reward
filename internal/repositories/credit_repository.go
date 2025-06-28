@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -153,4 +155,109 @@ func (r *CreditRepository) getPackageForUpdate(ctx context.Context, tx *sql.Tx, 
         return nil, err
     }
     return &pkg, nil
+}
+
+func (r *CreditRepository) UpdatePackage(ctx context.Context, packageID uuid.UUID, name, description *string, price *float64, rewardPoints *int, isActive *bool) error {
+	var setParts []string
+	var args []interface{}
+	argIndex := 1
+
+	if name != nil {
+		setParts = append(setParts, fmt.Sprintf("name = $%d", argIndex))
+		args = append(args, *name)
+		argIndex++
+	}
+	
+	if description != nil {
+		setParts = append(setParts, fmt.Sprintf("description = $%d", argIndex))
+		args = append(args, *description)
+		argIndex++
+	}
+	
+	if price != nil {
+		setParts = append(setParts, fmt.Sprintf("price = $%d", argIndex))
+		args = append(args, *price)
+		argIndex++
+	}
+	
+	if rewardPoints != nil {
+		setParts = append(setParts, fmt.Sprintf("reward_points = $%d", argIndex))
+		args = append(args, *rewardPoints)
+		argIndex++
+	}
+	
+	if isActive != nil {
+		setParts = append(setParts, fmt.Sprintf("is_active = $%d", argIndex))
+		args = append(args, *isActive)
+		argIndex++
+	}
+
+	if len(setParts) == 0 {
+		return fmt.Errorf("no fields to update")
+	}
+
+	setParts = append(setParts, fmt.Sprintf("updated_at = $%d", argIndex))
+	args = append(args, time.Now())
+	argIndex++
+
+	args = append(args, packageID)
+
+	query := fmt.Sprintf("UPDATE credit_packages SET %s WHERE id = $%d", strings.Join(setParts, ", "), argIndex)
+	
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("credit package not found")
+	}
+
+	return nil
+}
+
+func (r *CreditRepository) GetPackages(ctx context.Context, page, size int) ([]models.CreditPackage, int, error) {
+	var total int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM credit_packages").Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * size
+	query := `SELECT id, name, description, price, reward_points, is_active, created_at, updated_at 
+              FROM credit_packages 
+              ORDER BY created_at DESC 
+              LIMIT $1 OFFSET $2`
+
+	rows, err := r.db.QueryContext(ctx, query, size, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var packages []models.CreditPackage
+	for rows.Next() {
+		var pkg models.CreditPackage
+		err := rows.Scan(
+			&pkg.ID,
+			&pkg.Name,
+			&pkg.Description,
+			&pkg.Price,
+			&pkg.RewardPoints,
+			&pkg.IsActive,
+			&pkg.CreatedAt,
+			&pkg.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		packages = append(packages, pkg)
+	}
+
+	return packages, total, nil
 }

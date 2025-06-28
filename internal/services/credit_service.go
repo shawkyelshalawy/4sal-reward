@@ -37,3 +37,12 @@ func (s *CreditService) CreatePackage(ctx context.Context, name, description str
 	err := s.CreditRepo.CreatePackage(ctx, pkg)
 	return pkg.ID, err
 }
+
+func (s *CreditService) UpdatePackage(ctx context.Context, packageID uuid.UUID, name, description *string, price *float64, rewardPoints *int, isActive *bool) error {
+	return s.CreditRepo.UpdatePackage(ctx, packageID, name, description, price, rewardPoints, isActive)
+}
+
+// GetPackages retrieves credit packages with pagination
+func (s *CreditService) GetPackages(ctx context.Context, page, size int) ([]models.CreditPackage, int, error) {
+	return s.CreditRepo.GetPackages(ctx, page, size)
+}

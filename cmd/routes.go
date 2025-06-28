@@ -23,12 +23,15 @@ func SetupRoutes(
 	router.POST("/credits/purchase", creditHandler.PurchaseCreditPackage)
 	router.POST("/products/redeem", productHandler.RedeemProduct)
 	router.GET("/products/search", productHandler.SearchProducts)
+	router.GET("/credits/packages", creditHandler.GetCreditPackages)
 
 	admin := router.Group("/admin")
 	{
 		admin.POST("/packages", adminHandler.CreateCreditPackage)
 		admin.POST("/products", adminHandler.CreateProduct)
 		admin.PUT("/products/:id/offer-status", adminHandler.UpdateProductOfferStatus)
+		admin.PUT("/packages/:id", adminHandler.UpdateCreditPackage)
+		admin.PUT("/products/:id", adminHandler.UpdateProduct)
 	}
 
 }

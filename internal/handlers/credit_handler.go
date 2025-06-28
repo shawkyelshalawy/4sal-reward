@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -64,3 +65,36 @@ func (h *CreditHandler) GetCreditPackage(c *gin.Context) {
 	
 	c.JSON(http.StatusOK, pkg)
 }
+
+
+func (h *CreditHandler) GetCreditPackages(c *gin.Context) {
+	page := 1
+	size := 10
+	
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	
+	if s := c.Query("size"); s != "" {
+		if parsed, err := strconv.Atoi(s); err == nil && parsed > 0 && parsed <= 100 {
+			size = parsed
+		}
+	}
+
+	packages, total, err := h.CreditService.GetPackages(c.Request.Context(), page, size)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"packages":     packages,
+		"page":         page,
+		"size":         size,
+		"total":        total,
+		"total_pages":  (total + size - 1) / size,
+	})
+}
+
