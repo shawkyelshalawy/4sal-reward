@@ -418,5 +418,3 @@ Only return the JSON object, no additional text.
 4. **Product Fetching**: System retrieves all products in recommended category
 5. **Enhanced Response**: User receives recommendation with complete product catalog
 6. **Informed Decision**: User can immediately browse and redeem products
-
-This enhanced flow provides a seamless experience from AI recommendation to product selection and redemption.
