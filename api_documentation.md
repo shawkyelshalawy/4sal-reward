@@ -133,7 +133,7 @@ POST /products/redeem
 
 ---
 
-### AI Recommendations
+### AI Recommendations (Powered by Google Gemini)
 
 #### Get AI Recommendation
 ```http
@@ -153,9 +153,15 @@ POST /ai/recommendation
   "recommended_category_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f00010000",
   "min_points_llm": 400,
   "max_points_llm": 800,
-  "reasoning": "Based on your point balance and available categories, Electronics is the best fit for your current needs."
+  "reasoning": "Based on your point balance of 1500, Electronics category offers the best value with products ranging from 400-800 points, allowing you to make multiple purchases or save for premium items."
 }
 ```
+
+**AI Integration Details:**
+- **Model**: Google Gemini 1.5 Flash
+- **Fallback**: Rule-based recommendations if AI is unavailable
+- **Response Time**: Typically 1-3 seconds
+- **Context**: User's point balance and available product categories
 
 ---
 
@@ -324,3 +330,37 @@ The system comes pre-loaded with sample data:
 - **$10 Gift Card** - 1000 points (Gift Cards)
 - **Smart Home Hub** - 1200 points (Electronics)
 - **Cookbook: Italian Delights** - 300 points (Books)
+
+---
+
+## AI Prompt Engineering
+
+### Gemini Integration Details
+
+The AI recommendation system uses Google Gemini 1.5 Flash with carefully crafted prompts:
+
+**Prompt Structure:**
+```
+Given a user with a current point balance of {balance} and the following available categories: {categories_json}
+
+Suggest the most suitable category by its id and a corresponding minimum and maximum point range for products within that category.
+
+Consider the user's point balance and recommend a category that offers good value. The point range should be realistic for products in that category.
+
+Ensure the response is a JSON object with the following fields: 
+{"recommended_category_id": "string", "min_points_llm": "integer", "max_points_llm": "integer", "reasoning": "string"}
+
+Only return the JSON object, no additional text.
+```
+
+**Response Processing:**
+- JSON parsing with error handling
+- Fallback to rule-based logic if AI fails
+- Validation of category IDs against database
+- Point range validation for reasonableness
+
+**Performance Considerations:**
+- 30-second timeout for AI requests
+- Graceful degradation to simple recommendations
+- Caching of AI responses (future enhancement)
+- Rate limiting protection (future enhancement)

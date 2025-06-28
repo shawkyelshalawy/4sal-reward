@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,22 +32,24 @@ type AIRecommendationResponse struct {
 	Reasoning            string `json:"reasoning"`
 }
 
-type OpenAIRequest struct {
-	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
+type GeminiRequest struct {
+	Contents []GeminiContent `json:"contents"`
 }
 
-type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+type GeminiContent struct {
+	Parts []GeminiPart `json:"parts"`
 }
 
-type OpenAIResponse struct {
-	Choices []Choice `json:"choices"`
+type GeminiPart struct {
+	Text string `json:"text"`
 }
 
-type Choice struct {
-	Message Message `json:"message"`
+type GeminiResponse struct {
+	Candidates []GeminiCandidate `json:"candidates"`
+}
+
+type GeminiCandidate struct {
+	Content GeminiContent `json:"content"`
 }
 
 func (h *AIHandler) GetRecommendation(c *gin.Context) {
@@ -80,7 +81,7 @@ func (h *AIHandler) GetRecommendation(c *gin.Context) {
 	}
 	
 	// Get AI recommendation
-	recommendation, err := h.getAIRecommendation(c.Request.Context(), user.PointBalance, categories)
+	recommendation, err := h.getGeminiRecommendation(c.Request.Context(), user.PointBalance, categories)
 	if err != nil {
 		// Fallback to simple recommendation if AI fails
 		recommendation = h.getSimpleRecommendation(user.PointBalance, categories)
@@ -89,11 +90,8 @@ func (h *AIHandler) GetRecommendation(c *gin.Context) {
 	c.JSON(http.StatusOK, recommendation)
 }
 
-func (h *AIHandler) getAIRecommendation(ctx context.Context, pointBalance int, categories []interface{}) (*AIRecommendationResponse, error) {
-	openaiKey := os.Getenv("OPENAI_API_KEY")
-	if openaiKey == "" {
-		return nil, fmt.Errorf("OpenAI API key not configured")
-	}
+func (h *AIHandler) getGeminiRecommendation(ctx context.Context, pointBalance int, categories []interface{}) (*AIRecommendationResponse, error) {
+	geminiKey := "AIzaSyCCLOJCy5DwAUoSFgInnqbW7AkQJQyt_-Q"
 	
 	// Prepare categories for prompt
 	categoriesJSON, _ := json.Marshal(categories)
@@ -102,15 +100,19 @@ func (h *AIHandler) getAIRecommendation(ctx context.Context, pointBalance int, c
 
 Consider the user's point balance and recommend a category that offers good value. The point range should be realistic for products in that category.
 
-Ensure the response is a JSON object with the following fields: {"recommended_category_id": "string", "min_points_llm": "integer", "max_points_llm": "integer", "reasoning": "string"}.`, 
+Ensure the response is a JSON object with the following fields: {"recommended_category_id": "string", "min_points_llm": "integer", "max_points_llm": "integer", "reasoning": "string"}.
+
+Only return the JSON object, no additional text.`, 
 		pointBalance, string(categoriesJSON))
 	
-	reqBody := OpenAIRequest{
-		Model: "gpt-3.5-turbo",
-		Messages: []Message{
+	reqBody := GeminiRequest{
+		Contents: []GeminiContent{
 			{
-				Role:    "user",
-				Content: prompt,
+				Parts: []GeminiPart{
+					{
+						Text: prompt,
+					},
+				},
 			},
 		},
 	}
@@ -121,13 +123,14 @@ Ensure the response is a JSON object with the following fields: {"recommended_ca
 	}
 	
 	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonData))
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=%s", geminiKey)
+	
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 	
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+openaiKey)
 	
 	resp, err := client.Do(req)
 	if err != nil {
@@ -140,18 +143,24 @@ Ensure the response is a JSON object with the following fields: {"recommended_ca
 		return nil, err
 	}
 	
-	var openaiResp OpenAIResponse
-	if err := json.Unmarshal(body, &openaiResp); err != nil {
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Gemini API error: %s", string(body))
+	}
+	
+	var geminiResp GeminiResponse
+	if err := json.Unmarshal(body, &geminiResp); err != nil {
 		return nil, err
 	}
 	
-	if len(openaiResp.Choices) == 0 {
-		return nil, fmt.Errorf("no response from OpenAI")
+	if len(geminiResp.Candidates) == 0 || len(geminiResp.Candidates[0].Content.Parts) == 0 {
+		return nil, fmt.Errorf("no response from Gemini")
 	}
+	
+	responseText := geminiResp.Candidates[0].Content.Parts[0].Text
 	
 	var recommendation AIRecommendationResponse
-	if err := json.Unmarshal([]byte(openaiResp.Choices[0].Message.Content), &recommendation); err != nil {
-		return nil, err
+	if err := json.Unmarshal([]byte(responseText), &recommendation); err != nil {
+		return nil, fmt.Errorf("failed to parse Gemini response: %v", err)
 	}
 	
 	return &recommendation, nil

@@ -9,7 +9,7 @@ A modern, scalable reward system built with Go, designed for managing users, cre
 - **Credit Package Management**: Users can purchase credit packages and earn reward points
 - **Product Redemption**: Redeem products using earned points from the offer pool
 - **Advanced Search**: Fast, full-text search across product names and descriptions with pagination
-- **AI Recommendations**: Intelligent product suggestions based on user's point balance and available categories
+- **AI Recommendations**: Intelligent product suggestions powered by Google Gemini AI based on user's point balance and available categories
 - **Admin Panel**: Complete CRUD operations for packages and products
 - **Scalable Architecture**: Built with performance and scalability in mind
 - **Docker Support**: Fully containerized with Docker Compose
@@ -24,7 +24,7 @@ A modern, scalable reward system built with Go, designed for managing users, cre
 - **Backend**: Go 1.22 with Gin framework
 - **Database**: PostgreSQL 15 with full-text search
 - **Cache**: Redis 7 for search result caching
-- **AI Integration**: OpenAI GPT-3.5-turbo for recommendations
+- **AI Integration**: Google Gemini 1.5 Flash for intelligent recommendations
 - **Containerization**: Docker & Docker Compose
 - **Testing**: Go testing with sqlmock
 
@@ -59,23 +59,17 @@ A modern, scalable reward system built with Go, designed for managing users, cre
    cd 4sal-reward
    ```
 
-2. **Configure environment (optional):**
-   ```bash
-   cp .env.example .env
-   # Edit .env to add your OpenAI API key for AI recommendations
-   ```
-
-3. **Start all services:**
+2. **Start all services:**
    ```bash
    docker-compose up --build
    ```
 
-4. **Verify the setup:**
+3. **Verify the setup:**
    ```bash
    curl http://localhost:8080/health
    ```
 
-The API will be available at `http://localhost:8080` with sample data pre-loaded.
+The API will be available at `http://localhost:8080` with sample data pre-loaded and Google Gemini AI integration ready.
 
 ---
 
@@ -128,13 +122,13 @@ The project includes comprehensive unit tests for:
 
 ---
 
-## 🤖 AI Integration
+## 🤖 AI Integration with Google Gemini
 
 ### How It Works
 1. User requests recommendation via `/ai/recommendation`
 2. System fetches user's point balance and available categories
-3. Sends structured prompt to OpenAI GPT-3.5-turbo
-4. AI returns recommended category ID and point range
+3. Sends structured prompt to Google Gemini 1.5 Flash
+4. AI returns recommended category ID and point range in JSON format
 5. System provides intelligent product suggestions
 
 ### Sample AI Prompt
@@ -147,8 +141,14 @@ Suggest the most suitable category by its id and a corresponding minimum and max
 Response format: {"recommended_category_id": "string", "min_points_llm": integer, "max_points_llm": integer, "reasoning": "string"}
 ```
 
+### Gemini API Integration
+- **Model**: gemini-1.5-flash-latest
+- **API Key**: Pre-configured in environment
+- **Endpoint**: Google Generative Language API
+- **Timeout**: 30 seconds with graceful fallback
+
 ### Fallback Strategy
-If OpenAI is unavailable, the system falls back to rule-based recommendations ensuring 100% uptime.
+If Gemini AI is unavailable, the system falls back to rule-based recommendations ensuring 100% uptime.
 
 ---
 
@@ -223,7 +223,7 @@ make test
 ```bash
 DATABASE_URL=postgresql://admin:secret@localhost:5432/rewarddb?sslmode=disable
 REDIS_ADDR=localhost:6379
-OPENAI_API_KEY=your_openai_api_key_here
+GEMINI_API_KEY=AIzaSyCCLOJCy5DwAUoSFgInnqbW7AkQJQyt_-Q
 GIN_MODE=release
 ```
 
@@ -279,7 +279,7 @@ docker-compose up --scale app=3
 ```
 
 ### Environment Configuration
-- Set `OPENAI_API_KEY` for AI features
+- Set `GEMINI_API_KEY` for AI features
 - Configure `DATABASE_URL` for external database
 - Set `REDIS_ADDR` for external Redis
 - Enable `GIN_MODE=release` for production
@@ -330,6 +330,17 @@ docker-compose logs redis
 
 # Test Redis connection
 docker-compose exec redis redis-cli ping
+```
+
+**Gemini AI issues:**
+```bash
+# Check application logs for AI errors
+docker-compose logs app
+
+# Test AI endpoint manually
+curl -X POST http://localhost:8080/ai/recommendation \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"}'
 ```
 
 **Migration failures:**
