@@ -22,8 +22,8 @@ POST http://localhost:8080/products/redeem
 Content-Type: application/json
 
 {
-  "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-  "product_id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f200010000",
+  "user_id": "b1c9de00-0a1b-4c2d-8e3f-9a0b1c2d3e4f",
+  "product_id": "825e10ac-61e2-482e-88d8-01db69da9877",
   "quantity": 1
 }
 
